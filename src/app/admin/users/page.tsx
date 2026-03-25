@@ -1,43 +1,41 @@
-export const dynamic = 'force-dynamic';
+'use client'
 
-import { requireAdmin } from '@/lib/auth-guards'
-import { supabaseAdmin } from '@/lib/supabase/admin'
+import { useEffect, useState } from 'react'
 import AdminUsersTable, { type AdminUserRow } from '@/components/admin/AdminUsersTable'
+import { createClient } from '@supabase/supabase-js'
 
-export default async function AdminUsersPage() {
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
 
-  try {
-    if (process.env.NODE_ENV !== 'production') {
-      await requireAdmin()
-    }
-  } catch (e) {
-    console.log("Skipping auth during build")
-  }
+export default function AdminUsersPage() {
+  const [users, setUsers] = useState<AdminUserRow[]>([])
 
-  let initialUsers: AdminUserRow[] = []
+  useEffect(() => {
+    async function fetchUsers() {
+      try {
+        const { data: profiles } = await supabase.from('profiles').select('*')
 
-  try {
-    const { data: authData } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 })
-    const { data: profiles } = await supabaseAdmin.from('profiles').select('*')
+        const mapped = (profiles ?? []).map((p) => ({
+          id: p.id,
+          email: p.email ?? '',
+          full_name: p.full_name ?? null,
+          role: p.role ?? 'user',
+          subscription_status: p.subscription_status ?? 'inactive',
+          subscription_plan: p.subscription_plan ?? null,
+          handicap_index: p.handicap_index ?? null,
+          subscription_ends_at: p.subscription_ends_at ?? null,
+        }))
 
-    const pmap = Object.fromEntries((profiles ?? []).map((p) => [p.id, p]))
-
-    initialUsers = (authData?.users ?? []).map((u) => {
-      const p = pmap[u.id]
-      return {
-        id: u.id,
-        email: u.email ?? '',
-        full_name: p?.full_name ?? null,
-        role: p?.role ?? 'user',
-        subscription_status: p?.subscription_status ?? 'inactive',
-        subscription_plan: p?.subscription_plan ?? null,
-        handicap_index: p?.handicap_index != null ? Number(p.handicap_index) : null,
-        subscription_ends_at: p?.subscription_ends_at ?? null,
+        setUsers(mapped)
+      } catch (e) {
+        console.log("Error loading users")
       }
-    })
-  } catch (e) {
-    console.log("Skipping admin data during build")
-  }
+    }
 
-  return <AdminUsersTable initialUsers={initialUsers} />
+    fetchUsers()
+  }, [])
+
+  return <AdminUsersTable initialUsers={users} />
 }

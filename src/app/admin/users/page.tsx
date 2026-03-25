@@ -1,6 +1,9 @@
+
+export const dynamic = 'force-dynamic';
 import { requireAdmin } from '@/lib/auth-guards'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import AdminUsersTable, { type AdminUserRow } from '@/components/admin/AdminUsersTable'
+
 
 export default async function AdminUsersPage() {
   await requireAdmin()
